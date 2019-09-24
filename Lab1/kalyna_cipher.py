@@ -70,6 +70,7 @@ class Kalyna:
                              Sboxes.sboxes_dec[2][(status_copy[i] & 0x00FF000000000000) >> 48] << 48 | \
                              Sboxes.sboxes_dec[3][(status_copy[i] & 0xFF00000000000000) >> 56] << 56
 
+    # конвертація в масив байтів
     @staticmethod
     def words_to_bytes(words):
         return bytearray(words)
