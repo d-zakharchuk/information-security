@@ -1,3 +1,4 @@
+import struct
 import sys
 
 import numpy as np
@@ -45,44 +46,31 @@ class Kalyna:
         self.round_keys = np.zeros((self.number_of_rounds + 1, self.words_in_block), dtype=np.uint64)
 
     # Заміна кожного байта в шифрі з використанням SBoxes
-    def sub_bytes(self):
-        status_copy = bytearray(self.status)
+    def sub_bytes(self, box):
+        status_copy = self.status.copy()
         for i in range(self.words_in_block):
-            self.status[i] = Sboxes.sboxes_enc[0][status_copy[i] & 0x00000000000000FF] | \
-                             Sboxes.sboxes_enc[1][(status_copy[i] & 0x000000000000FF00) >> 8] << 8 | \
-                             Sboxes.sboxes_enc[2][(status_copy[i] & 0x0000000000FF0000) >> 16] << 16 | \
-                             Sboxes.sboxes_enc[3][(status_copy[i] & 0x00000000FF000000) >> 24] << 24 | \
-                             Sboxes.sboxes_enc[0][(status_copy[i] & 0x000000FF00000000) >> 32] << 32 | \
-                             Sboxes.sboxes_enc[1][(status_copy[i] & 0x0000FF0000000000) >> 40] << 40 | \
-                             Sboxes.sboxes_enc[2][(status_copy[i] & 0x00FF000000000000) >> 48] << 48 | \
-                             Sboxes.sboxes_enc[3][(status_copy[i] & 0xFF00000000000000) >> 56] << 56
+            self.status[i] = int(box[0][int(status_copy[i]) & 0x00000000000000FF]) | \
+                             (int(box[1][(int(status_copy[i]) & 0x000000000000FF00) >> 8]) << 8) | \
+                             (int(box[2][(int(status_copy[i]) & 0x0000000000FF0000) >> 16]) << 16) | \
+                             (int(box[3][(int(status_copy[i]) & 0x00000000FF000000) >> 24]) << 24) | \
+                             (int(box[0][(int(status_copy[i]) & 0x000000FF00000000) >> 32]) << 32) | \
+                             (int(box[1][(int(status_copy[i]) & 0x0000FF0000000000) >> 40]) << 40) | \
+                             (int(box[2][(int(status_copy[i]) & 0x00FF000000000000) >> 48]) << 48) | \
+                             (int(box[3][(int(status_copy[i]) & 0xFF00000000000000) >> 56]) << 56)
 
     # Інвертоване перетворення за допомогою матриць SBoxes
     def inv_sub_bytes(self):
-        status_copy = bytearray(self.status)
+        self.sub_bytes(box=Sboxes.sboxes_dec)
+
+    def bytes_to_words(self, new_status):
+        self.status = (new_status.reshape((2, 8)))
+        ns = np.zeros((self.words_in_block,), dtype=np.uint64)
         for i in range(self.words_in_block):
-            self.status[i] = Sboxes.sboxes_dec[0][status_copy[i] & 0x00000000000000FF] | \
-                             Sboxes.sboxes_dec[1][(status_copy[i] & 0x000000000000FF00) >> 8] << 8 | \
-                             Sboxes.sboxes_dec[2][(status_copy[i] & 0x0000000000FF0000) >> 16] << 16 | \
-                             Sboxes.sboxes_dec[3][(status_copy[i] & 0x00000000FF000000) >> 24] << 24 | \
-                             Sboxes.sboxes_dec[0][(status_copy[i] & 0x000000FF00000000) >> 32] << 32 | \
-                             Sboxes.sboxes_dec[1][(status_copy[i] & 0x0000FF0000000000) >> 40] << 40 | \
-                             Sboxes.sboxes_dec[2][(status_copy[i] & 0x00FF000000000000) >> 48] << 48 | \
-                             Sboxes.sboxes_dec[3][(status_copy[i] & 0xFF00000000000000) >> 56] << 56
-
-    # конвертація в масив байтів
-    @staticmethod
-    def words_to_bytes(words):
-        return bytearray(words)
-
-    @staticmethod
-    def bytes_to_words(length, bytes_):
-        words = np.uint64(bytes_)
-        if sys.byteorder != "little":
-            for i in range(length):
-                reversed_word = words[i][::-1]
-                words[i] = reversed_word
-        return words
+            new_list = [bytes([self.status[i][j]]) for j in range(len(self.status[i]))]
+            new_list = b"".join(new_list)
+            self.status[i] = int.from_bytes(new_list, byteorder=sys.byteorder)
+            ns[i] = np.uint64(self.status[i][0])
+        self.status = ns.copy()
 
     def shift_rows(self):
         shift = -1
@@ -93,14 +81,7 @@ class Kalyna:
                 shift += 1
             for col in range(self.words_in_block):
                 new_status[row + 8 * ((col + shift) % self.words_in_block)] = status[row + 8 * col]
-        self.status = (new_status.reshape((2, 8)))
-        ns = np.zeros((self.words_in_block,), dtype=np.uint64)
-        for i in range(self.words_in_block):
-            new_list = [bytes([self.status[i][j]]) for j in range(len(self.status[i]))]
-            new_list = b"".join(new_list)
-            self.status[i] = int.from_bytes(new_list, byteorder=sys.byteorder)
-            ns[i] = np.uint64(self.status[i][0])
-        self.status = ns.copy()
+        self.bytes_to_words(new_status)
 
     def inv_shift_rows(self):
         shift = -1
@@ -111,21 +92,10 @@ class Kalyna:
                 shift += 1
             for col in range(self.words_in_block):
                 new_status[row + 8 * col] = status[row + 8 * ((col + shift) % self.words_in_block)]
-        self.status = (new_status.reshape((2, 8)))
-        ns = np.zeros((self.words_in_block,), dtype=np.uint64)
-        for i in range(self.words_in_block):
-            new_list = [bytes([self.status[i][j]]) for j in range(len(self.status[i]))]
-            new_list = b"".join(new_list)
-            self.status[i] = int.from_bytes(new_list, byteorder=sys.byteorder)
-            ns[i] = np.uint64(self.status[i][0])
-        self.status = ns.copy()
-
-    @staticmethod
-    def index(table, row, col):
-        return table[row + col * 8]
+        self.bytes_to_words(new_status)
 
     def matrix_multiply(self, matrix_):
-        status = self.words_to_bytes(self.status)
+        status = bytearray(self.status)
         for col in range(self.words_in_block):
             result = 0
             for row in range(7, -1, -1):
@@ -151,7 +121,7 @@ class Kalyna:
         self.matrix_multiply(Sboxes.mds_matrix)
 
     def encipher_round(self):
-        self.sub_bytes()
+        self.sub_bytes(box=Sboxes.sboxes_enc)
         self.shift_rows()
         self.mix_columns()
 
@@ -166,15 +136,16 @@ class Kalyna:
     def rotate_left(self, size, value_):
         rotate_bytes = 2 * size + 3
         bytes_num = size * (self.BITS_IN_WORD / 8)
-        bytes_ = self.words_to_bytes(value_)
+        bytes_ = bytearray(value_)
         buffer = bytes_[:rotate_bytes]
         new_bytes_index = int(bytes_num - rotate_bytes)
-        bytes_[new_bytes_index - 1:] = buffer
-        return self.bytes_to_words(bytes_num, bytes_)
+        bytes_[:new_bytes_index] = bytes_[rotate_bytes:]
+        bytes_[new_bytes_index:] = buffer
+        return struct.unpack('<QQ', bytes_)
 
     @staticmethod
     def shift_left(size, value_):
-        value_ = bytearray(value_)
+        value_ = [int(x) for x in value_]
         for i in range(size):
             value_[i] <<= 1
         return np.uint64(value_)
@@ -209,12 +180,9 @@ class Kalyna:
         self.encipher_round()
         self.add_round_key_expand(k0)
         self.encipher_round()
-        kt = self.status.copy()
-        return kt
+        return self.status.copy()
 
     def key_expand_even(self, key, kt):
-        initial = np.zeros((self.words_in_key * 8,), dtype=np.uint64)
-        kt_round = np.zeros((self.words_in_block * 8,), dtype=np.uint64)
         tmv = np.zeros((self.words_in_block * 8,), dtype=np.uint64)
         round_ = 0
         initial = key.copy()
@@ -231,7 +199,7 @@ class Kalyna:
             self.encipher_round()
             self.add_round_key_expand(kt_round)
             self.round_keys[round_] = self.status.copy()
-            if self.words_in_key == round_:
+            if self.number_of_rounds == round_:
                 break
             if self.words_in_key != self.words_in_block:
                 round_ += 2
@@ -255,7 +223,7 @@ class Kalyna:
     def key_expand_odd(self):
         for i in range(1, self.number_of_rounds, 2):
             self.round_keys[i] = self.round_keys[i - 1].copy()
-            self.rotate_left(self.words_in_block, self.round_keys[i])
+            self.round_keys[i] = self.rotate_left(self.words_in_block, self.round_keys[i])
 
     def kalyna_key_expand(self, key):
         kt = self.key_expand_kt(key)
@@ -266,7 +234,7 @@ class Kalyna:
         round_ = 0
         self.status = plaintext.copy()
         self.add_round_key(round_)
-        for i in range(1, self.number_of_rounds):
+        for round_ in range(1, self.number_of_rounds):
             self.encipher_round()
             self.xor_round_key(round_)
         self.encipher_round()

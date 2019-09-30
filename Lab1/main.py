@@ -27,7 +27,7 @@ def main():
     print(bytes(ct22_e).hex().upper())
     print("Expected:")
     print(bytes(expect22_e).hex().upper())
-    ke.kalyna_key_expand(key22_d)
+    kd.kalyna_key_expand(key22_d)
     print("=============")
     print("Kalyna ", np.uint64(kd.words_in_block * 64), np.uint64(kd.words_in_key * 64))
     print("--- DECIPHERING ---")
