@@ -80,7 +80,7 @@ class MySha3Impl:
         for i in range(5):
             for j in range(5):
                 for k in range(self.num_of_bits):
-                    select = matrix_rho[i][j] % self.num_of_bits # вибір (t + 1)(t + 2)/2 через матрицю matrix_rho
+                    select = matrix_rho[i][j] % self.num_of_bits  # вибір (t + 1)(t + 2)/2 через матрицю matrix_rho
                     output_array[i][j][k] = ain[i][j][k - select]
         return output_array
 
