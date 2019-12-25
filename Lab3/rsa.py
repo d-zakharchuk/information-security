@@ -57,22 +57,24 @@ class RsaImpl:
         return (e, n), (d, n)
 
     @staticmethod
-    def encrypt(private_key, plaintext):
+    def encrypt(private_key, plaintext, verbose=True):
         key, n = private_key
         # Кожна літера конвертується в число (ASCII-код), потім обчислюється a^key mod n
         number_representation = [ord(char) for char in plaintext]
-        print("Number representation before encryption: ", number_representation)
+        if verbose:
+            print("Number representation before encryption: ", number_representation)
         cipher = [pow(ord(char), key, n) for char in plaintext]
         return cipher
 
     @staticmethod
-    def decrypt(public_key, cipher_text):
+    def decrypt(public_key, cipher_text, verbose=True):
         key, n = public_key
         # Шифр розшифровується у числовому представленні
         number_representation = [pow(char, key, n) for char in cipher_text]
         # потім замість чисел підставляються відповідні їм char-символи
         plain = [chr(pow(char, key, n)) for char in cipher_text]
-        print("Decrypted number representation : ", number_representation)
+        if verbose:
+            print("Decrypted number representation : ", number_representation)
         return ''.join(plain)
 
     @staticmethod
@@ -91,10 +93,10 @@ class RsaImpl:
             print(received_hash, " != ", my_hash)
 
     def run_rsa(self):
-        p = random.randint(10 ** 100, 10 ** 101)
+        p = random.randint(10 ** 150, 10 ** 151)
         while not self.fermat_test(p):
             p += 1
-        q = random.randint(10 ** 100, 10 ** 101)
+        q = random.randint(10 ** 150, 10 ** 151)
         while not self.fermat_test(q):
             q += 1
         print("Generating key pairs ...")

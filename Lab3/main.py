@@ -1,4 +1,10 @@
 from Lab3.rsa import RsaImpl
 
-r = RsaImpl()
-r.run_rsa()
+
+def main():
+    r = RsaImpl()
+    r.run_rsa()
+
+
+if __name__ == '__main__':
+    main()
